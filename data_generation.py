@@ -12,16 +12,17 @@ def generate_case(tasks, case_id, start_time,min_datapoints,rand=True,connect = 
     case_id=str(case_id).zfill(len(str(min_datapoints)))
     case.append(['null','S0',time,'Req',case_id]) #request between the user and the first server
     
+    num_opts = len([key for key,values in tasks.items() if values[0] == 'opt'])
     #random_indexes = sorted(random.sample(list(range(len(tasks.keys()))),random.randint(2, len(tasks.keys()))))
     #list_new_tasks = [list(tasks.keys())[i] for i in sorted(random.sample(list(range(len(tasks.keys()))),random.randint(2, len(tasks.keys()))))]
     if rand == True:
-        new_tasks = {task:tasks[task] for task in [list(tasks.keys())[i] for i in random.sample(list(range(len(tasks.keys()))),random.randint(2, len(tasks.keys())))]}
+        new_tasks = {task:tasks[task] for task in [list(tasks.keys())[i] for i in random.sample(list(range(len(tasks.keys())-num_opts)),random.randint(2, len(tasks.keys())-num_opts))]}
     else:
         new_tasks = tasks#{task:tasks[task] for task in [list(tasks.keys())[i] for i in sorted(random.sample(list(range(len(tasks.keys()))),random.randint(2, len(tasks.keys()))))]}
-    
     for task,subtasks in new_tasks.items():
-        server = f"S{list(tasks.keys()).index(task)+1}" #SX
-        case.append(['S0',server,time,'Req',case_id])#request between the first server and the specific server
+        if subtasks[0] != 'opt':
+            server = f"S{list(tasks.keys()).index(task)+1}" #SX
+            case.append(['S0',server,time,'Req',case_id])#request between the first server and the specific server
         if subtasks[0]=='one':
             service_task = random.choice(subtasks[1])
             new_server = f"{server}_{subtasks[1].index(service_task)+1}"
@@ -74,7 +75,8 @@ def generate_case(tasks, case_id, start_time,min_datapoints,rand=True,connect = 
         else:
             print('smth wrong')#need to change this to make sure it raises an error or smth like that
         
-        case.append([server,'S0',time,'Res',case_id])#response between the specific server and the first server 
+        if subtasks[0] != 'opt':
+            case.append([server,'S0',time,'Res',case_id])#response between the specific server and the first server 
     case.append(['S0','null',time,'Res',case_id])#response between and the first server the user
     return case
 
@@ -101,20 +103,20 @@ def generate_dataset(tasks, min_datapoints,start_time,end_time,random=True,conne
     df.to_csv(output_file, index=False)
 
 
-# tasks = {'log_in': ['one',['credentials check','sing up','recover pw and log in'],(0,10)],
-#             'search_book': ['rand',['history','fantasy','crime','poetry','biography'],(5,15)],
-#             'shipment' : ['all',['adress','door number','zip code'],(15,50)],
-#             'payment' : ['one',['visa','master card','revolut','paypal','apple pay'],(10,100)],
-#             'new_site' : ['con',['site1','site2'],(10,100)],
-#             'site1' : ['opt',['site1_1','site1_2','site1_3'],(10,100)],
-#             'site2' : ['opt',['site2_1','site2_2'],(10,100)]
-# }   
-# start_time = datetime(2024, 6, 3, 9, 0, 0)  
-# end_time = datetime(2024, 6, 3, 10, 45, 0) 
+tasks = {'log_in': ['one',['credentials check','sing up','recover pw and log in'],(0,10)],
+            'search_book': ['rand',['history','fantasy','crime','poetry','biography'],(5,15)],
+            'shipment' : ['all',['adress','door number','zip code'],(15,50)],
+            'payment' : ['one',['visa','master card','revolut','paypal','apple pay'],(10,100)],
+            'new_site' : ['con',['site1','site2'],(10,100)],
+            'site1' : ['opt',['site1_1','site1_2','site1_3'],(10,100)],
+            'site2' : ['opt',['site2_1','site2_2'],(10,100)]
+}   
+start_time = datetime(2024, 6, 3, 9, 0, 0)  
+end_time = datetime(2024, 6, 3, 10, 45, 0) 
 
 # #Experiment 1
 # #generate_dataset(tasks, 1000000,start_time,end_time,random=False, connect=False)  
 # #Experiment 2: con
 # generate_dataset(tasks, 1000000,start_time,end_time,random=False,file_name="dataset1")  
 # #Experiment 3
-# generate_dataset(tasks, 1000000,start_time,end_time,file_name="dataset2")  
+generate_dataset(tasks, 1000000,start_time,end_time,file_name="dataset2")  
