@@ -9,7 +9,7 @@ def generate_case(tasks, case_id, start_time,min_datapoints,rand=True,connect = 
     '''
     case = []
     time = start_time
-    case_id=str(case_id).zfill(len(str(min_datapoints)))
+    case_id=str(case_id)#.zfill(len(str(min_datapoints)))
     case.append(['null','S0',time,'Req',case_id]) #request between the user and the first server
     
     num_opts = len([key for key,values in tasks.items() if values[0] == 'opt'])
