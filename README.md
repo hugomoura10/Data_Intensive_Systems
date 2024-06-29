@@ -48,7 +48,7 @@ To obtain the output files, run the function output(), which requires the follow
 1. dataset: contains the name of the file containing the dataset we want to investigate (string);
 2. k: value of k for the k-shingles (int);
 3. threshold: percentage threshold for the MinHash function from datasketch (float);
-4. p1: whether we want to print the output file with the same format then the input file (true->part1Output.txt AND part1Observations.txt), or only the one with the structure of the groups (false->part1Observations.txt) (boolean);
+4. p1: part 1 = whether we want to print the output file with the same format then the input file (true->part1Output.txt AND part1Observations.txt), or part2 = only the one with the structure of the groups (false->part1Observations.txt) (boolean);
 
 ### Experiments
 This experiments.ipynb file contains all the experiments performed in this assignment, for both folds.

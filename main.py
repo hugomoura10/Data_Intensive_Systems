@@ -18,8 +18,6 @@ import time
 import psutil
 import matplotlib.pyplot as plt
 
-
-
 def get_memory_usage(): 
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
 
@@ -27,7 +25,6 @@ def get_cpu_usage():
     return psutil.cpu_percent(interval=None)
 
 def get_performance(func1,func2, vals):
-    #k_values = [2, 3, 4, 5, 6, 7, 8]
     results = []
 
     for k in vals:
@@ -82,25 +79,18 @@ def plot_performances(results):
     time_seconds = [result['time_seconds'] for result in results]
     cpu_percentages = [result['cpu'] for result in results]
 
-    # Calculate the performance metric (Product of time_seconds and cpu)
     performance_metric = [time_seconds[i] * cpu_percentages[i] for i in range(len(results))]
 
-    # Create a figure and axis
     plt.figure(figsize=(10, 6))
-
-    # Plot the performance metric
     plt.plot(k_values, performance_metric, marker='o', linestyle='-', color='purple', label='Time * CPU')
-
-    # Set labels and title
     plt.xlabel('k values')
     plt.ylabel('Performance Metric (Time * CPU)')
     plt.title('Combined Metric of Time and CPU Usage vs. k Values')
     plt.xticks(k_values)
     plt.grid(True)
     plt.legend()
-
-    # Display the plot
     plt.tight_layout()
+
     plt.show()
 
 def distinct_elements_in_order(lst):
@@ -239,10 +229,19 @@ def write_output2(df, groups):
 def output(dataset, k, threshold,p1=True):
     spark = SparkSession.builder.appName("OutputUserIDs").getOrCreate()
     data = spark.read.csv(dataset, header=True, inferSchema=True)
-    df_filtered_m = data.filter(data.type.isin(['Req']))
-    df_grouped = df_filtered_m.groupBy("user_id").agg(concat_ws("", collect_list("to")).alias("features"))
+    if p1 == True:
+        df_filtered = data.filter(data.type.isin(['Req']))
+        df_grouped = df_filtered.groupBy("user_id").agg(concat_ws("", collect_list("to")).alias("features"))
+        
+    
+    else:
+        df_filtered = data.filter((col("from") == "S0") & (~col("to").contains("null")) & (~col("to").contains("_")))
+        df_grouped = df_filtered.groupBy("user_id").agg(concat_ws("",collect_list("to")).alias("features"))
+    
     max_user_id = df_grouped.select(spark_max("user_id")).collect()[0][0]
-
+    df_grouped.show()
+    
+        
     replacement_candidates = minhash_lsh(df_grouped, k, threshold)
     new_process_dictionary = bucketing(replacement_candidates[0])    
 
@@ -298,6 +297,7 @@ def get_averege_jaccard_sim(final_buckets, minhashes,get = True):
                         sims[key] = [sim]
                     else:
                         sims[key].append(sim)
+    print('sim:',sims)
     total_sum = 0
     total_count = 0
     sims = dict(sorted(sims.items()))
@@ -312,3 +312,5 @@ def get_averege_jaccard_sim(final_buckets, minhashes,get = True):
         print("Overall Average Jaccard Similarity:", overall_average)
 
     return sims
+
+print('o')
