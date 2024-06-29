@@ -7,18 +7,18 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType
 from pyspark.sql.functions import max as spark_max
 
-
 from datasketch import MinHash, MinHashLSH
 import numpy as np 
 from numpy import average
 
-
 import shutil
 import os
-
+import resource
 import time
 import psutil
 import matplotlib.pyplot as plt
+
+
 
 def get_memory_usage(): 
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
@@ -284,37 +284,6 @@ def output(dataset, k, threshold,p1=True):
     if p1== True:
         write_output1(final_df, 'part1Output.txt')
     write_output2(data, new_process_dictionary)
-
-################################################################################################################################
-################################################# Question 2 ###################################################################
-################################################################################################################################
-
-# def kmeans_clustering(df, n_clusters, max_iter):
-#     minhashes = []
-#     #for jaccard verification
-#     minhash_dict = {}
-#     user_ids = []
-#     final_buckets = {}
-#     for features in df.collect():
-#         shingles = shingle(features["features"], 5)
-#         m = MinHash(num_perm=128)
-#         for shingle_item in shingles:
-#             m.update(shingle_item.encode("utf8"))
-#         minhashes.append(m.hashvalues)
-#         minhash_dict[int(features["user_id"])] = m
-#         user_ids.append(int(features["user_id"]))
-
-#     kmeans = KMeans(n_clusters=n_clusters, max_iter=max_iter).fit(minhashes)
-
-#     user_clusters = dict(zip(user_ids, kmeans.labels_))
-#     final_buckets = {}
-#     for key, value in user_clusters.items():
-#         if value in final_buckets:
-#             final_buckets[value].append(key)
-#         else:
-#             final_buckets[value] = [key]
-
-#     return final_buckets, minhash_dict
 
 def get_averege_jaccard_sim(final_buckets, minhashes,get = True):
     sims = {}
