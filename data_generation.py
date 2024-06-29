@@ -115,8 +115,11 @@ start_time = datetime(2024, 6, 3, 9, 0, 0)
 end_time = datetime(2024, 6, 3, 10, 45, 0) 
 
 # #Experiment 1
-generate_dataset(tasks, 100,start_time,end_time,file_name="dataset1",random=False,connect=False)  
+#generate_dataset(tasks, 100,start_time,end_time,file_name="dataset1",random=False,connect=False)  
 # #Experiment 2: con
 # generate_dataset(tasks, 1000000,start_time,end_time,random=False,file_name="dataset1")  
 # #Experiment 3
 #generate_dataset(tasks, 1000000,start_time,end_time,file_name="dataset2")  
+print(type(start_time))
+a = 1
+print(type(a))
