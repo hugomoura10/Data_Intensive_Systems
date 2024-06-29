@@ -200,6 +200,78 @@ def get_shingles(user_id,df):
     else:
         return None
 
+def experiment(data,k_value,threshold=0,approach =1):
+    
+    def shingle(text, k=k_value):
+        shingle_set = []
+        for i in range(len(text)-k +1):
+            shingle_set.append(text[i:i+k])
+        return list(set(shingle_set))
+    if approach == 1:
+        df_filtered = data.filter(data.type.isin(['Req']))
+        
+    else:
+        df_filtered = data.filter((col("from") == "S0") & (~col("to").contains("null")) & (~col("to").contains("_")))
+    
+    df_grouped = df_filtered.groupBy("user_id").agg(concat_ws("",collect_list("to")).alias("features"))
+    shingles_udf = udf(shingle, ArrayType(StringType()))
+    df_shingles = df_filtered.groupBy("user_id").agg(concat_ws("", collect_list("to")).alias("trace")) \
+        .withColumn("shingles", shingles_udf(col("trace"))) \
+        .select("user_id", "shingles")
+    
+
+
+    average_length = df_grouped.select(avg(length(col('features')))).collect()[0][0]
+    average_shingles = df_shingles.withColumn("list_length", size(col("shingles"))) \
+                        .agg(avg("list_length").alias("average_list_length")).collect()[0][0]
+
+    print('average trace length:',average_length)
+
+    ############################################################
+    print('average trace # shingles:',average_shingles)
+    print(f"Initial number of cases: {df_grouped.count()}")
+    if threshold==0:
+        threshold = (int(average_shingles)-1)/int(average_shingles)
+    print('threshold:', threshold)
+    ans = minhash_lsh(df_grouped,7,threshold)
+    replacement_candidates, minhash_dic = ans[0],ans[1]
+    new_process_dictionary= bucketing(replacement_candidates)
+    print(f"Number of unique processes after merging them with {threshold} threshold using 7-shingles: {len(new_process_dictionary)}")
+
+    ############################################################
+    sims = get_averege_jaccard_sim(replacement_candidates, minhash_dic,get=False)
+
+    if len(set(value for key,values in sims.items() for value in values if value != 1.0)) != 0:
+        ans = min(set(value for key,values in sims.items() for value in values if value != 1.0))
+        final_values = []
+        for key,values in sims.items():
+            for value in values:
+                if value == ans:
+                    final_values.append(key)
+
+        dissimilar = set(final_values)
+        new_sims = []
+        for key in dissimilar:
+            for value in replacement_candidates[key]:
+                new_sims.append((key,value,jaccard_similarity(get_shingles(value,df_shingles),get_shingles(key,df_shingles))))
+        investigate = [case for case in new_sims if case[-1]!=1.0]
+        done_cases = []
+        for case in investigate:
+            if case[0] not in done_cases and case[1] not in done_cases:
+                print(f'######################### {case[0]} vs {case[1]} ################################')
+                print('jaccard similarity:',jaccard_similarity(get_shingles(case[0],df_shingles), get_shingles(case[1],df_shingles)))
+                print(case[0],':',get_traces(case[0],df_grouped))
+                print(case[1],':',get_traces(case[1],df_grouped))
+                done_cases.append(case[0])
+                done_cases.append(case[1])
+                print('#######################################################################')
+
+    else:
+        print('all processes have approximate jaccard sim = 1')
+
+
+
+    
 def write_output1(df, file_name):
     output_dir = 'Output'
     os.makedirs(output_dir, exist_ok=True)
@@ -297,7 +369,6 @@ def get_averege_jaccard_sim(final_buckets, minhashes,get = True):
                         sims[key] = [sim]
                     else:
                         sims[key].append(sim)
-    print('sim:',sims)
     total_sum = 0
     total_count = 0
     sims = dict(sorted(sims.items()))
@@ -312,5 +383,3 @@ def get_averege_jaccard_sim(final_buckets, minhashes,get = True):
         print("Overall Average Jaccard Similarity:", overall_average)
 
     return sims
-
-print('o')
