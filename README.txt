@@ -53,6 +53,13 @@ To obtain the output files, run the function output(), which requires the follow
 ### Experiments
 This experiments.ipynb file contains all the experiments performed in this assignment, for both folds.
 
+To investigate the outcome of applying the solution we came up with to a specific data set, the user should firt read it as a spark dataframe. Then, the function experiment() receives that data and a k value for the k-shingles. The threshold can either be given by the user or computed automatically, ensuring that processes that are considered to be small variations of each other are grouped together.
+
+To investigate the performance of our implementation in terms of CPU usage and time, the user can use the function performance_eval, which receives:
+- func1, func2: functions that group and bucket similar processes
+- data: the dataset
+- the different values of k for the k-shingles
+
 
 ## Contributors
 - t.andradecapeladasilvacarrilho@students.uu.nl

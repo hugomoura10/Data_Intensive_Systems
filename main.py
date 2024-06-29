@@ -18,80 +18,8 @@ import time
 import psutil
 import matplotlib.pyplot as plt
 
-def get_memory_usage(): 
-    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
 
-def get_cpu_usage(): 
-    return psutil.cpu_percent(interval=None)
 
-def get_performance(func1,func2, vals):
-    results = []
-
-    for k in vals:
-        start_time = time.time()
-        start_mem = get_memory_usage()
-        start_cpu = get_cpu_usage()
-
-        replacement_candidates, minhashes = func1(df_grouped, k, 0.98)
-        new_process_dictionary = func2(replacement_candidates)
-        
-        end_time = time.time()
-        end_mem = get_memory_usage()
-        end_cpu = get_cpu_usage()
-
-        duration = end_time - start_time
-        mem_used = end_mem - start_mem
-
-        results.append({
-            'k': k,
-            'time_seconds': duration,
-            'memory_mb': mem_used,
-            'unique_processes': len(new_process_dictionary),
-            'cpu': end_cpu
-        })
-    return results
-
-def plot_results(results):
-    k_values = [result['k'] for result in results]
-    time_seconds = [result['time_seconds'] for result in results]
-    cpu_percentages = [result['cpu'] for result in results]
-    fig, ax1 = plt.subplots(figsize=(10, 6))
-
-    ax1.set_xlabel('k values')
-    ax1.set_ylabel('Time (seconds)', color='tab:blue')
-    ax1.plot(k_values, time_seconds, marker='o', color='tab:blue', label='Time')
-    ax1.tick_params(axis='y', labelcolor='tab:blue')
-
-    ax2 = ax1.twinx()
-    ax2.set_ylabel('CPU Usage (%)', color='tab:red')
-
-    ax2.plot(k_values, cpu_percentages, marker='^', color='tab:red', linestyle='--', label='CPU Usage')
-    ax2.tick_params(axis='y', labelcolor='tab:red')
-
-    plt.title('Performance Metrics for Different k Values')
-    fig.legend(loc='upper left')
-    plt.tight_layout()
-    plt.grid(True)
-    plt.show()
-
-def plot_performances(results):
-    k_values = [result['k'] for result in results]
-    time_seconds = [result['time_seconds'] for result in results]
-    cpu_percentages = [result['cpu'] for result in results]
-
-    performance_metric = [time_seconds[i] * cpu_percentages[i] for i in range(len(results))]
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(k_values, performance_metric, marker='o', linestyle='-', color='purple', label='Time * CPU')
-    plt.xlabel('k values')
-    plt.ylabel('Performance Metric (Time * CPU)')
-    plt.title('Combined Metric of Time and CPU Usage vs. k Values')
-    plt.xticks(k_values)
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-
-    plt.show()
 
 def distinct_elements_in_order(lst):
     seen = set()
@@ -201,7 +129,6 @@ def get_shingles(user_id,df):
         return None
 
 def experiment(data,k_value,threshold=0,approach =1):
-    
     def shingle(text, k=k_value):
         shingle_set = []
         for i in range(len(text)-k +1):
@@ -232,7 +159,7 @@ def experiment(data,k_value,threshold=0,approach =1):
     print(f"Initial number of cases: {df_grouped.count()}")
     if threshold==0:
         threshold = (int(average_shingles)-1)/int(average_shingles)
-    print('threshold:', threshold)
+
     ans = minhash_lsh(df_grouped,7,threshold)
     replacement_candidates, minhash_dic = ans[0],ans[1]
     new_process_dictionary= bucketing(replacement_candidates)
@@ -256,6 +183,7 @@ def experiment(data,k_value,threshold=0,approach =1):
                 new_sims.append((key,value,jaccard_similarity(get_shingles(value,df_shingles),get_shingles(key,df_shingles))))
         investigate = [case for case in new_sims if case[-1]!=1.0]
         done_cases = []
+        print('Cases with the lowe')
         for case in investigate:
             if case[0] not in done_cases and case[1] not in done_cases:
                 print(f'######################### {case[0]} vs {case[1]} ################################')
@@ -383,3 +311,108 @@ def get_averege_jaccard_sim(final_buckets, minhashes,get = True):
         print("Overall Average Jaccard Similarity:", overall_average)
 
     return sims
+
+def get_memory_usage(): 
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+
+def get_cpu_usage(): 
+    return psutil.cpu_percent(interval=None)
+
+def get_performance(func1,func2, data,vals,threshold=0):
+    df_filtered = data.filter(data.type.isin(['Req']))
+    df_grouped = df_filtered.groupBy("user_id").agg(concat_ws("",collect_list("to")).alias("features"))
+
+    results = []
+
+    for k in vals:
+        def shingle(text, k=k):
+            shingle_set = []
+            for i in range(len(text)-k +1):
+                shingle_set.append(text[i:i+k])
+            return list(set(shingle_set))
+        shingles_udf = udf(shingle, ArrayType(StringType()))
+        df_shingles = df_filtered.groupBy("user_id").agg(concat_ws("", collect_list("to")).alias("trace")) \
+        .withColumn("shingles", shingles_udf(col("trace"))) \
+        .select("user_id", "shingles")
+    
+        average_shingles = df_shingles.withColumn("list_length", size(col("shingles"))) \
+                        .agg(avg("list_length").alias("average_list_length")).collect()[0][0]
+        if threshold==0:
+            threshold = (int(average_shingles)-1)/int(average_shingles)
+        start_time = time.time()
+        start_mem = get_memory_usage()
+        start_cpu = get_cpu_usage()
+
+        replacement_candidates, minhashes = func1(df_grouped, k, threshold)
+        new_process_dictionary = func2(replacement_candidates)
+        
+        end_time = time.time()
+        end_mem = get_memory_usage()
+        end_cpu = get_cpu_usage()
+
+        duration = end_time - start_time
+        mem_used = end_mem - start_mem
+
+        results.append({
+            'k': k,
+            'time_seconds': duration,
+            'memory_mb': mem_used,
+            'unique_processes': len(new_process_dictionary),
+            'cpu': end_cpu
+        })
+    return results
+
+def plot_results(results):
+    k_values = [result['k'] for result in results]
+    time_seconds = [result['time_seconds'] for result in results]
+    cpu_percentages = [result['cpu'] for result in results]
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    ax1.set_xlabel('k values')
+    ax1.set_ylabel('Time (seconds)', color='tab:blue')
+    ax1.plot(k_values, time_seconds, marker='o', color='tab:blue', label='Time')
+    ax1.tick_params(axis='y', labelcolor='tab:blue')
+
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('CPU Usage (%)', color='tab:red')
+
+    ax2.plot(k_values, cpu_percentages, marker='o', color='tab:red', linestyle='--', label='CPU Usage')
+    ax2.tick_params(axis='y', labelcolor='tab:red')
+
+    fig.legend(loc='upper left')
+    plt.tight_layout()
+    plt.grid(True, linewidth=0.3)
+    plt.show()
+
+def plot_performances(results, include_unique_processes=True):
+    k_values = [result['k'] for result in results]
+    time_seconds = [result['time_seconds'] for result in results]
+    cpu_percentages = [result['cpu'] for result in results]
+
+    performance_metric = [time_seconds[i] * cpu_percentages[i] for i in range(len(results))]
+
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    ax1.plot(k_values, performance_metric, marker='o', linestyle='-', color='purple', label='Time * CPU')
+    ax1.set_xlabel('k values')
+    ax1.set_ylabel('Performance Metric (Time * CPU)', color='purple')
+    ax1.tick_params(axis='y', labelcolor='purple')
+
+    if include_unique_processes:
+        unique_processes = [result['unique_processes'] for result in results]
+
+        ax2 = ax1.twinx()
+        ax2.set_ylabel('Unique Processes', color='green')
+        ax2.plot(k_values, unique_processes, marker='o', linestyle='--', color='green', label='Unique Processes')
+        ax2.tick_params(axis='y', labelcolor='green')
+
+    fig.legend(loc='upper left')
+
+    plt.tight_layout()
+    plt.grid(True, linewidth=0.3)
+    plt.show()
+
+def performance_eval(func1,func2,data,vals):
+    results = get_performance(func1,func2,data, [3,4,5,6,7,8,9])
+    plot_results(results)
+    plot_performances(results)
