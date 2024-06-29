@@ -238,9 +238,7 @@ def output(dataset, k, threshold,p1=True):
         df_filtered = data.filter((col("from") == "S0") & (~col("to").contains("null")) & (~col("to").contains("_")))
         df_grouped = df_filtered.groupBy("user_id").agg(concat_ws("",collect_list("to")).alias("features"))
     
-    max_user_id = df_grouped.select(spark_max("user_id")).collect()[0][0]
-    df_grouped.show()
-    
+    max_user_id = df_grouped.select(spark_max("user_id")).collect()[0][0]    
         
     replacement_candidates = minhash_lsh(df_grouped, k, threshold)
     new_process_dictionary = bucketing(replacement_candidates[0])    
