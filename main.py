@@ -13,7 +13,7 @@ from numpy import average
 
 import shutil
 import os
-import resource
+#import resource
 import time
 import psutil
 import matplotlib.pyplot as plt
